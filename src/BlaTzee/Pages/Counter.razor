@@ -1,0 +1,39 @@
+@page "/counter"
+
+
+@using Types
+
+
+
+<h1>Counter</h1>
+<div class="d-flex flex-row">
+    <div class="p-2">
+        <Die Value="DiceSides[0]" />
+        <Die Value="DiceSides[1]" />
+        <Die Value="DiceSides[2]" />
+        <Die Value="DiceSides[3]" />
+        <Die Value="DiceSides[4]" />
+    </div>
+</div>
+
+
+<button class="btn btn-primary" @onclick="RollDice">Roll the Dice</button>
+
+@code {
+    private CubeSide[] DiceSides = { CubeSide.one, CubeSide.two, CubeSide.three, CubeSide.four, CubeSide.five };
+    private readonly CubeSide[] straight1 = { CubeSide.one, CubeSide.two, CubeSide.three, CubeSide.four, CubeSide.five };
+    private readonly CubeSide[] straight2 = { CubeSide.two, CubeSide.three, CubeSide.four, CubeSide.five, CubeSide.six };
+
+    private int maxPairCount;
+    private void RollDice()
+    {
+        Random rand = new Random();
+        DiceSides = Enumerable.Repeat(0, 5).Select(x => (CubeSide)rand.Next((int)CubeSide.one, (int)CubeSide.six)).ToArray();
+        DiceSides.OrderBy(x => x).Aggregate(Wins.none, (v1, v2) =>
+            {
+            v1 == v2
+             })
+        //maxPairCount = DiceSides.Aggregate(0, (acc, c) => c).Max();
+Console.WriteLine(DiceSides);
+    }
+}
