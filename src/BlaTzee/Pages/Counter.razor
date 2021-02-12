@@ -1,11 +1,12 @@
 @page "/counter"
-
+@using System.ComponentModel.DataAnnotations
 
 @using Types
 
 
 
-<h1>Counter</h1>
+<h1>BlaTzee</h1>
+<h2>A Yahtzee game made in Blazor</h2>
 <div class="d-flex flex-row">
     <div class="p-2">
         <Die Value="DiceSides[0]" />
@@ -15,25 +16,95 @@
         <Die Value="DiceSides[4]" />
     </div>
 </div>
+<h1>Balance: @bank.Balance.ToString("C")</h1>
+<h1>@bank.Message</h1>
+<div class="form-row">
+    <div class="input-group">
+        <label for="wager-input">Wager</label>
+        <input id="wager-input" type="number" @bind="bank.Wager" min="0.25" step="5.00" data-number-to-fixed="2"
+            data-number-stepfactor="100" class="form-control currency" />
+    </div>
+</div>
 
 
 <button class="btn btn-primary" @onclick="RollDice">Roll the Dice</button>
+<button class="btn btn-primary" @onclick="NewGame">New Game</button>
 
 @code {
     private CubeSide[] DiceSides = { CubeSide.one, CubeSide.two, CubeSide.three, CubeSide.four, CubeSide.five };
-    private readonly CubeSide[] straight1 = { CubeSide.one, CubeSide.two, CubeSide.three, CubeSide.four, CubeSide.five };
-    private readonly CubeSide[] straight2 = { CubeSide.two, CubeSide.three, CubeSide.four, CubeSide.five, CubeSide.six };
+    private Wins wins;
 
-    private int maxPairCount;
+    private BankRoll bank { get; set; }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        bank = new BankRoll(50.00);
+    }
+
     private void RollDice()
     {
         Random rand = new Random();
         DiceSides = Enumerable.Repeat(0, 5).Select(x => (CubeSide)rand.Next((int)CubeSide.one, (int)CubeSide.six)).ToArray();
-        DiceSides.OrderBy(x => x).Aggregate(Wins.none, (v1, v2) =>
+        var result = DiceSides.GroupBy(x => x).Select(x => x.Count()).Max();
+        wins = result switch
+        {
+            1 => !DiceSides.Contains(CubeSide.one) || !DiceSides.Contains(CubeSide.six) ? Wins.straight : Wins.none,
+            2 => Wins.pair,
+            3 => Wins.threeOfKind,
+            4 => Wins.fourOfKind,
+            5 => Wins.fiveOfKind,
+            _ => Wins.none
+        };
+
+        bank.PayOut(wins);
+        StateHasChanged();
+        Console.WriteLine(wins);
+    }
+    private void NewGame()
+    {
+        bank = new BankRoll(50d);
+        StateHasChanged();
+    }
+    public class BankRoll
+    {
+
+        private double _wager;
+        private double _balance;
+        private string _message;
+        public double Balance => _balance;
+        public BankRoll(double Balance)
+        {
+            _balance = Balance;
+            _wager = 5d;
+        }
+        public string Message => _message;
+        [Range(0.25, 100000)]
+        public double Wager
+        {
+            get => _wager;
+            set
             {
-            v1 == v2
-             })
-        //maxPairCount = DiceSides.Aggregate(0, (acc, c) => c).Max();
-Console.WriteLine(DiceSides);
+                if (value <= Balance)
+                    _wager = value;
+            }
+        }
+
+        public void PayOut(Wins winResult)
+        {
+            int payoutMulti = winResult switch
+            {
+                Wins.fiveOfKind => 100,
+                Wins.fourOfKind => 50,
+                Wins.threeOfKind => 10,
+                Wins.straight => 5,
+                _ => -1
+            };
+            var verb = (payoutMulti < 1) ? "lost" : "won";
+            _message = $"You {verb} {(payoutMulti * Wager).ToString("C")}";
+            _balance += payoutMulti * Wager;
+            if (Wager > Balance) Wager = Balance;
+        }
+
     }
 }
