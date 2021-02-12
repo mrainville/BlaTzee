@@ -1,7 +1,125 @@
-﻿@page "/"
+@page "/"
+@using System.ComponentModel.DataAnnotations
 
-<h1>Hello, world!</h1>
+@using BlaTzee.Components
+@using Types
 
-Welcome to your new app.
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+
+
+<div class="container">
+
+    <h2>Blahtzee: A Yahtzee game made in Blazor</h2>
+    <div class="d-flex flex-row">
+        <div class="p-2">
+            <Die Value="DiceSides[0]" />
+            <Die Value="DiceSides[1]" />
+            <Die Value="DiceSides[2]" />
+            <Die Value="DiceSides[3]" />
+            <Die Value="DiceSides[4]" />
+        </div>
+    </div>
+    <h1>Balance: @bank.Balance.ToString("C")</h1>
+    <h1>@bank.Message</h1>
+
+    <label for="wager-input">Wager</label>
+    <div class="input-group mb-3" style="max-width: 20rem;">
+        <div class="input-group-prepend">
+            <span class="input-group-text">$</span>
+        </div>
+        <input type="number" class="form-control" step="5.00" @bind="bank.Wager" id="wager-input"
+            aria-label="Wager amount ($1 dollar minimum bet)">
+    </div>
+
+    <button class="btn btn-primary" @onclick="RollDice" disabled="@(bank.Wager <= 0d)">Roll the Dice</button>
+    <button class="btn btn-primary" @onclick="NewGame">New Game</button>
+</div>
+
+@code {
+    private CubeSide[] DiceSides = { CubeSide.one, CubeSide.two, CubeSide.three, CubeSide.four, CubeSide.five };
+    private Wins wins;
+    private Random rand = new Random();
+    private BankRoll bank { get; set; }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        bank = new BankRoll(50.00);
+    }
+
+    /// <summary>
+    /// Rolls the dice; attempting to determine results with a single iteration
+    /// </summary>
+    private void RollDice()
+    {
+        // Randomly build the array
+        DiceSides = Enumerable
+            .Repeat(0, 5) // lenth of array
+            .Select(x => (CubeSide)rand.Next((int)CubeSide.one, (int)CubeSide.six)) // Generate each item randomly
+            .ToArray();
+
+        // Find the max number of matches
+        var matchCount = DiceSides.GroupBy(x => x).Select(x => x.Count()).Max();
+
+        // Determine the result
+        wins = matchCount switch
+        {
+            1 => !DiceSides.Contains(CubeSide.one) || !DiceSides.Contains(CubeSide.six) ? Wins.Straight : Wins.none,
+            2 => Wins.Pair,
+            3 => Wins.ThreeOfKind,
+            4 => Wins.FourOfKind,
+            5 => Wins.FiveOfKind,
+            _ => Wins.none
+        };
+        // Charge the bank
+        bank.PayOut(wins);
+        StateHasChanged();
+
+    }
+    private void NewGame()
+    {
+        bank = new BankRoll(50d);
+        StateHasChanged();
+    }
+    public class BankRoll
+    {
+
+        private double _wager;
+        private double _balance;
+        private string _message;
+        public double Balance => _balance;
+        public BankRoll(double Balance)
+        {
+            _balance = Balance;
+            _wager = 0;
+        }
+        public string Message => _message;
+        [Range(0.00, 100000)]
+        public double Wager
+        {
+            get => _wager;
+            set
+            {
+                if (value <= Balance)
+                    _wager = value;
+            }
+        }
+
+        public void PayOut(Wins winResult)
+        {
+            int payoutMulti = winResult switch
+            {
+                Wins.FiveOfKind => 100,
+                Wins.FourOfKind => 50,
+                Wins.ThreeOfKind => 10,
+                Wins.Straight => 5,
+                _ => -1
+            };
+            var verb = (payoutMulti < 1) ? "lost" : "won";
+            _message = $"{winResult} You {verb} {(payoutMulti * Wager).ToString("C")}";
+            _balance += payoutMulti * Wager;
+            if (Wager > Balance) Wager = Balance;
+        }
+
+    }
+}
