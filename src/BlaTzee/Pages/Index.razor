@@ -2,7 +2,7 @@
 @using System.ComponentModel.DataAnnotations
 
 @using BlaTzee.Components
-@using Types
+@using BlaTzee.Types
 
 
 
@@ -22,16 +22,21 @@
     <h1>Balance: @bank.Balance.ToString("C")</h1>
     <h1>@bank.Message</h1>
 
-    <label for="wager-input">Wager</label>
-    <div class="input-group mb-3" style="max-width: 20rem;">
-        <div class="input-group-prepend">
-            <span class="input-group-text">$</span>
+    <EditForm Model="@bank" OnValidSubmit="RollDice">
+        <DataAnnotationsValidator />
+        <label for="wager-input">Wager</label>
+        <div class="input-group mb-3" style="max-width: 20rem;">
+            <div class="input-group-prepend">
+                <span class="input-group-text">$</span>
+            </div>
+            <InputNumber CssClass="form-control" step="5.00" @bind-Value="bank.Wager" id="wager-input"
+                aria-label="Wager amount ($1 dollar minimum bet)" />
+            <ValidationSummary />
         </div>
-        <input type="number" class="form-control" step="5.00" @bind="bank.Wager" id="wager-input"
-            aria-label="Wager amount ($1 dollar minimum bet)">
-    </div>
 
-    <button class="btn btn-primary" @onclick="RollDice" disabled="@(bank.Wager <= 0d)">Roll the Dice</button>
+        <button class="btn btn-primary" type="submit" disabled="@(bank.Wager <= 0d)">Roll the
+            Dice</button>
+    </EditForm>
     <button class="btn btn-primary" @onclick="NewGame">New Game</button>
 </div>
 
@@ -40,6 +45,7 @@
     private Wins wins;
     private Random rand = new Random();
     private BankRoll bank { get; set; }
+
 
     protected override void OnInitialized()
     {
@@ -54,13 +60,14 @@
     {
         // Randomly build the array
         DiceSides = Enumerable
-            .Repeat(0, 5) // lenth of array
-            .Select(x => (CubeSide)rand.Next((int)CubeSide.one, (int)CubeSide.six)) // Generate each item randomly
-            .ToArray();
+                .Repeat(0, 5) // lenth of array
+                .Select(x => (CubeSide)rand.Next((int)CubeSide.one, (int)CubeSide.six)) // Generate each item randomly
+                .ToArray();
 
         // Find the max number of matches
-        var matchCount = DiceSides.GroupBy(x => x).Select(x => x.Count()).Max();
-
+        var matchCount = DiceSides
+                .GroupBy(x => x)
+                .Select(x => x.Count()).Max();
         // Determine the result
         wins = matchCount switch
         {
@@ -94,7 +101,8 @@
             _wager = 0;
         }
         public string Message => _message;
-        [Range(0.00, 100000)]
+
+        [Range(1, 100000, ErrorMessage = "Wager must be between $1 and $100,000")]
         public double Wager
         {
             get => _wager;
